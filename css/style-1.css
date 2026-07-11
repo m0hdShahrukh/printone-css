@@ -117,6 +117,499 @@ html {
 }
 
 
+/* Header Buttons */
+/* ── Header Button 1: Pill / outline style ── */
+.btn-header-pill {
+  background: transparent !important;
+  position: relative !important;
+  padding: 8px 20px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  border: 1.5px solid #2890F1 !important;
+  border-radius: 25px !important;
+  outline: none !important;
+  overflow: hidden !important;
+  color: #2890F1 !important;
+  transition: color 0.3s 0.1s ease-out !important;
+}
+
+.btn-header-pill::before {
+  position: absolute !important;
+  top: 0 !important;
+  left: -5em !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  margin: auto !important;
+  content: '' !important;
+  border-radius: 50% !important;
+  display: block !important;
+  width: 20em !important;
+  height: 20em !important;
+  transition: box-shadow 0.5s ease-out !important;
+  z-index: 0 !important;
+}
+
+.btn-header-pill svg,
+.btn-header-pill span {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.btn-header-pill:hover {
+  color: #fff !important;
+  border-color: #2890F1 !important;
+}
+
+.btn-header-pill:hover::before {
+  box-shadow: inset 0 0 0 10em #2890F1 !important;
+}
+
+/* ── Header Button 2: Solid / fill style ── */
+.btn-header-solid {
+  display: inline-flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 10px 18px !important;
+  gap: 10px !important;
+  background-color: #2890F1 !important;
+  outline: 3px #2890F1 solid !important;
+  outline-offset: -3px !important;
+  border-radius: 6px !important;
+  border: none !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: background-color 400ms, color 400ms !important;
+  color: #fff !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+.btn-header-solid svg path {
+  fill: #fff !important;
+  transition: fill 400ms !important;
+}
+
+.btn-header-solid:hover {
+  background-color: transparent !important;
+  color: #2890F1 !important;
+}
+
+.btn-header-solid:hover svg path {
+  fill: #2890F1 !important;
+}
+
+.container.header-container {
+  width: 1400px;
+}
+
+/* ── Mobile: show only phone button, reduced size ── */
+@media (max-width: 767px) {
+
+  .btn-header-solid,
+  .demo-header {
+    display: none !important;
+  }
+
+  .btn-header-pill {
+    padding: 6px 14px !important;
+    font-size: 13px !important;
+    gap: 6px !important;
+    border-radius: 20px !important;
+  }
+
+  .btn-header-pill svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .container.header-container {
+    width: auto;
+  }
+}
+
+.demo-header {
+  background: var(--color-background-primary);
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 24px;
+  gap: 16px;
+  border-radius: var(--border-radius-lg);
+}
+
+.demo-header nav {
+  display: flex;
+  gap: 20px;
+}
+
+.demo-header nav a {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.social-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.social-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  height: 34px;
+  border-radius: 999px;
+  border: 0.5px solid var(--color-border-secondary);
+  background: var(--color-background-primary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s;
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-sans);
+}
+
+.social-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.social-btn:hover {
+  background: var(--color-background-secondary);
+  border-color: var(--color-border-primary);
+}
+
+.light-bg * {
+  color: #343846 !important;
+}
+
+.social-tray {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: #ffffff;
+  margin-top: 10px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.97);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+}
+
+.social-wrap:hover .social-tray,
+.social-wrap:focus-within .social-tray {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateY(0) scale(1);
+}
+
+.s-card {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-secondary);
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  text-decoration: none;
+}
+
+.s-card:hover {
+  transform: scale(1.07);
+}
+
+.s-card svg {
+  width: 20px;
+  height: 20px;
+}
+
+.s-card.ig:hover {
+  background: #cc39a4;
+  border-color: #cc39a4;
+}
+
+.s-card.ig:hover svg {
+  fill: white;
+}
+
+.s-card.tw:hover {
+  background: #000;
+  border-color: #000;
+}
+
+.s-card.tw:hover svg {
+  fill: white;
+}
+
+.s-card.fb:hover {
+  background: #1877F2;
+  border-color: #1877F2;
+}
+
+.s-card.fb:hover svg {
+  fill: white;
+}
+
+.s-card.li:hover {
+  background: #0A66C2;
+  border-color: #0A66C2;
+}
+
+.s-card.li:hover svg {
+  fill: white;
+}
+
+.ig svg {
+  fill: #cc39a4;
+}
+
+.tw svg {
+  fill: #555;
+}
+
+.fb svg {
+  fill: #1877F2;
+}
+
+.li svg {
+  fill: #0A66C2;
+}
+
+.code-block {
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  padding: 16px 20px;
+  margin-top: 16px;
+}
+
+.code-block p {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0 0 12px;
+}
+
+.code-block code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-primary);
+  display: block;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+/* 1. Reduce the gap so the bridge doesn't need to be huge */
+.social-tray {
+  top: calc(100% + 4px);
+  /* was 8px */
+}
+
+/* 2. Invisible bridge that fills the gap */
+.social-tray::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  /* matches the gap + a little extra */
+  left: 0;
+  right: 0;
+  height: 12px;
+}
+
+/* Brand Logos  */
+.brand-logos-section {
+  padding: 70px 0;
+  background: #fff;
+}
+
+.brand-logos-header {
+  margin-bottom: 28px;
+}
+
+.brand-logos-header .title {
+  margin-bottom: 10px;
+}
+
+.brand-logos-header .description {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.brand-logos-marquee {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 22px 0;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.05);
+}
+
+.brand-logos-marquee::before,
+.brand-logos-marquee::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 90px;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.brand-logos-marquee::before {
+  left: 0;
+  background: linear-gradient(90deg, #f5f5f5 0%, rgba(245, 245, 245, 0) 100%);
+}
+
+.brand-logos-marquee::after {
+  right: 0;
+  background: linear-gradient(270deg, #f5f5f5 0%, rgba(245, 245, 245, 0) 100%);
+}
+
+.brand-logos-track {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: max-content;
+  padding: 0 18px;
+  animation: brandMarquee 28s linear infinite;
+  will-change: transform;
+}
+
+.brand-logo-card {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 170px;
+  min-height: 96px;
+  padding: 18px 24px;
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+  text-decoration: none;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.brand-logo-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.brand-logo-card img {
+  display: block;
+  width: 100%;
+  max-width: 120px;
+  max-height: 46px;
+  object-fit: contain;
+  filter: grayscale(100%);
+  opacity: 0.9;
+  transition: filter 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+}
+
+.content-section.brand-logos-section.cs-7-2 {
+  padding-top: 0 !important;
+}
+
+.brand-logo-card:hover img {
+  filter: grayscale(0%);
+  opacity: 1;
+  transform: scale(1.03);
+}
+
+@keyframes brandMarquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.brand-logos-marquee.is-paused .brand-logos-track {
+  animation-play-state: paused;
+}
+
+@media (max-width: 991px) {
+  .brand-logos-section {
+    padding: 55px 0;
+  }
+
+  .brand-logo-card {
+    min-width: 150px;
+    min-height: 88px;
+    padding: 16px 20px;
+  }
+
+  .brand-logos-track {
+    gap: 14px;
+  }
+
+  .brand-logos-marquee::before,
+  .brand-logos-marquee::after {
+    width: 55px;
+  }
+}
+
+@media (max-width: 767px) {
+  .brand-logos-section {
+    padding: 42px 0;
+  }
+
+  .brand-logos-marquee {
+    border-radius: 22px;
+    padding: 16px 0;
+  }
+
+  .brand-logo-card {
+    min-width: 132px;
+    min-height: 78px;
+    padding: 14px 16px;
+    border-radius: 14px;
+  }
+
+  .brand-logo-card img {
+    max-width: 98px;
+    max-height: 38px;
+  }
+
+  .brand-logos-marquee::before,
+  .brand-logos-marquee::after {
+    width: 35px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-logos-track {
+    animation: none;
+    transform: none;
+  }
+}
+/* ENd */
 
 /* Style parent items with children */
 
@@ -22214,497 +22707,4 @@ fieldset[disabled] a.post.single .share-article a {
 
   margin-bottom: 8%;
 
-}
-
-/* Header Buttons */
-/* ── Header Button 1: Pill / outline style ── */
-.btn-header-pill {
-  background: transparent !important;
-  position: relative !important;
-  padding: 8px 20px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  font-size: 15px !important;
-  font-weight: 600 !important;
-  text-decoration: none !important;
-  cursor: pointer !important;
-  border: 1.5px solid #2890F1 !important;
-  border-radius: 25px !important;
-  outline: none !important;
-  overflow: hidden !important;
-  color: #2890F1 !important;
-  transition: color 0.3s 0.1s ease-out !important;
-}
-
-.btn-header-pill::before {
-  position: absolute !important;
-  top: 0 !important;
-  left: -5em !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  margin: auto !important;
-  content: '' !important;
-  border-radius: 50% !important;
-  display: block !important;
-  width: 20em !important;
-  height: 20em !important;
-  transition: box-shadow 0.5s ease-out !important;
-  z-index: 0 !important;
-}
-
-.btn-header-pill svg,
-.btn-header-pill span {
-  position: relative !important;
-  z-index: 1 !important;
-}
-
-.btn-header-pill:hover {
-  color: #fff !important;
-  border-color: #2890F1 !important;
-}
-
-.btn-header-pill:hover::before {
-  box-shadow: inset 0 0 0 10em #2890F1 !important;
-}
-
-/* ── Header Button 2: Solid / fill style ── */
-.btn-header-solid {
-  display: inline-flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  padding: 10px 18px !important;
-  gap: 10px !important;
-  background-color: #2890F1 !important;
-  outline: 3px #2890F1 solid !important;
-  outline-offset: -3px !important;
-  border-radius: 6px !important;
-  border: none !important;
-  cursor: pointer !important;
-  text-decoration: none !important;
-  transition: background-color 400ms, color 400ms !important;
-  color: #fff !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
-}
-
-.btn-header-solid svg path {
-  fill: #fff !important;
-  transition: fill 400ms !important;
-}
-
-.btn-header-solid:hover {
-  background-color: transparent !important;
-  color: #2890F1 !important;
-}
-
-.btn-header-solid:hover svg path {
-  fill: #2890F1 !important;
-}
-
-.container.header-container {
-  width: 1400px;
-}
-
-/* ── Mobile: show only phone button, reduced size ── */
-@media (max-width: 767px) {
-
-  .btn-header-solid,
-  .demo-header {
-    display: none !important;
-  }
-
-  .btn-header-pill {
-    padding: 6px 14px !important;
-    font-size: 13px !important;
-    gap: 6px !important;
-    border-radius: 20px !important;
-  }
-
-  .btn-header-pill svg {
-    width: 14px !important;
-    height: 14px !important;
-  }
-
-  .container.header-container {
-    width: auto;
-  }
-}
-
-.demo-header {
-  background: var(--color-background-primary);
-  border-bottom: 0.5px solid var(--color-border-tertiary);
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 24px;
-  gap: 16px;
-  border-radius: var(--border-radius-lg);
-}
-
-.demo-header nav {
-  display: flex;
-  gap: 20px;
-}
-
-.demo-header nav a {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  text-decoration: none;
-}
-
-.social-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.social-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 14px;
-  height: 34px;
-  border-radius: 999px;
-  border: 0.5px solid var(--color-border-secondary);
-  background: var(--color-background-primary);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  white-space: nowrap;
-  transition: background 0.2s, border-color 0.2s;
-  position: relative;
-  z-index: 2;
-  font-family: var(--font-sans);
-}
-
-.social-btn svg {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-}
-
-.social-btn:hover {
-  background: var(--color-background-secondary);
-  border-color: var(--color-border-primary);
-}
-
-.light-bg * {
-  color: #343846 !important;
-}
-
-.social-tray {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  background: #ffffff;
-  margin-top: 10px;
-  border: 0.5px solid var(--color-border-tertiary);
-  border-radius: 12px;
-  padding: 8px;
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-6px) scale(0.97);
-  transition: opacity 0.18s ease, transform 0.18s ease;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  z-index: 100;
-}
-
-.social-wrap:hover .social-tray,
-.social-wrap:focus-within .social-tray {
-  opacity: 1;
-  pointer-events: all;
-  transform: translateY(0) scale(1);
-}
-
-.s-card {
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: 0.5px solid var(--color-border-tertiary);
-  background: var(--color-background-secondary);
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
-  text-decoration: none;
-}
-
-.s-card:hover {
-  transform: scale(1.07);
-}
-
-.s-card svg {
-  width: 20px;
-  height: 20px;
-}
-
-.s-card.ig:hover {
-  background: #cc39a4;
-  border-color: #cc39a4;
-}
-
-.s-card.ig:hover svg {
-  fill: white;
-}
-
-.s-card.tw:hover {
-  background: #000;
-  border-color: #000;
-}
-
-.s-card.tw:hover svg {
-  fill: white;
-}
-
-.s-card.fb:hover {
-  background: #1877F2;
-  border-color: #1877F2;
-}
-
-.s-card.fb:hover svg {
-  fill: white;
-}
-
-.s-card.li:hover {
-  background: #0A66C2;
-  border-color: #0A66C2;
-}
-
-.s-card.li:hover svg {
-  fill: white;
-}
-
-.ig svg {
-  fill: #cc39a4;
-}
-
-.tw svg {
-  fill: #555;
-}
-
-.fb svg {
-  fill: #1877F2;
-}
-
-.li svg {
-  fill: #0A66C2;
-}
-
-.code-block {
-  background: var(--color-background-secondary);
-  border: 0.5px solid var(--color-border-tertiary);
-  border-radius: var(--border-radius-lg);
-  padding: 16px 20px;
-  margin-top: 16px;
-}
-
-.code-block p {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  margin: 0 0 12px;
-}
-
-.code-block code {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-text-primary);
-  display: block;
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-
-/* 1. Reduce the gap so the bridge doesn't need to be huge */
-.social-tray {
-  top: calc(100% + 4px);
-  /* was 8px */
-}
-
-/* 2. Invisible bridge that fills the gap */
-.social-tray::before {
-  content: '';
-  position: absolute;
-  top: -12px;
-  /* matches the gap + a little extra */
-  left: 0;
-  right: 0;
-  height: 12px;
-}
-
-/* Brand Logos  */
-.brand-logos-section {
-  padding: 70px 0;
-  background: #fff;
-}
-
-.brand-logos-header {
-  margin-bottom: 28px;
-}
-
-.brand-logos-header .title {
-  margin-bottom: 10px;
-}
-
-.brand-logos-header .description {
-  max-width: 820px;
-  margin: 0 auto;
-}
-
-.brand-logos-marquee {
-  position: relative;
-  overflow: hidden;
-  border-radius: 28px;
-  background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  padding: 22px 0;
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.05);
-}
-
-.brand-logos-marquee::before,
-.brand-logos-marquee::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  width: 90px;
-  height: 100%;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.brand-logos-marquee::before {
-  left: 0;
-  background: linear-gradient(90deg, #f5f5f5 0%, rgba(245, 245, 245, 0) 100%);
-}
-
-.brand-logos-marquee::after {
-  right: 0;
-  background: linear-gradient(270deg, #f5f5f5 0%, rgba(245, 245, 245, 0) 100%);
-}
-
-.brand-logos-track {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  width: max-content;
-  padding: 0 18px;
-  animation: brandMarquee 28s linear infinite;
-  will-change: transform;
-}
-
-.brand-logo-card {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 170px;
-  min-height: 96px;
-  padding: 18px 24px;
-  background: #fff;
-  border-radius: 18px;
-  border: 1px solid rgba(0, 0, 0, 0.07);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
-  text-decoration: none;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-}
-
-.brand-logo-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
-  border-color: rgba(0, 0, 0, 0.12);
-}
-
-.brand-logo-card img {
-  display: block;
-  width: 100%;
-  max-width: 120px;
-  max-height: 46px;
-  object-fit: contain;
-  filter: grayscale(100%);
-  opacity: 0.9;
-  transition: filter 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
-}
-
-.content-section.brand-logos-section.cs-7-2 {
-  padding-top: 0 !important;
-}
-
-.brand-logo-card:hover img {
-  filter: grayscale(0%);
-  opacity: 1;
-  transform: scale(1.03);
-}
-
-@keyframes brandMarquee {
-  0% {
-    transform: translateX(0);
-  }
-
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.brand-logos-marquee.is-paused .brand-logos-track {
-  animation-play-state: paused;
-}
-
-@media (max-width: 991px) {
-  .brand-logos-section {
-    padding: 55px 0;
-  }
-
-  .brand-logo-card {
-    min-width: 150px;
-    min-height: 88px;
-    padding: 16px 20px;
-  }
-
-  .brand-logos-track {
-    gap: 14px;
-  }
-
-  .brand-logos-marquee::before,
-  .brand-logos-marquee::after {
-    width: 55px;
-  }
-}
-
-@media (max-width: 767px) {
-  .brand-logos-section {
-    padding: 42px 0;
-  }
-
-  .brand-logos-marquee {
-    border-radius: 22px;
-    padding: 16px 0;
-  }
-
-  .brand-logo-card {
-    min-width: 132px;
-    min-height: 78px;
-    padding: 14px 16px;
-    border-radius: 14px;
-  }
-
-  .brand-logo-card img {
-    max-width: 98px;
-    max-height: 38px;
-  }
-
-  .brand-logos-marquee::before,
-  .brand-logos-marquee::after {
-    width: 35px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .brand-logos-track {
-    animation: none;
-    transform: none;
-  }
 }
