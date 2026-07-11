@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnapConvert — Free Image Converter & Compressor</title>
+<meta name="description" content="Convert and compress images to JPG, PNG, WebP and AVIF — 100% free, private, and runs entirely in your browser." />
+
+<!-- Tailwind CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            50: '#eff6ff', 100:'#dbeafe', 200:'#bfdbfe', 300:'#93c5fd',
+            400:'#60a5fa', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8',
+            800:'#1e40af', 900:'#1e3a8a'
+          }
+        },
+        fontFamily: {
+          sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif']
+        }
+      }
+    }
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- React + ReactDOM (UMD) -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- JSZip for batch download -->
+<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<style>
+  html { font-family: 'Inter', sans-serif; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+  .dark ::-webkit-scrollbar-thumb { background: #475569; }
+  .drop-active { box-shadow: 0 0 0 3px rgba(59,130,246,0.5) inset; }
+  @keyframes pulseBar { 0% { opacity: .5 } 50% { opacity: 1 } 100% { opacity: .5 } }
+  .pulse-bar { animation: pulseBar 1.4s ease-in-out infinite; }
+  @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+  .spin { animation: spin 1s linear infinite; }
+  .fade-in { animation: fadeIn .35s ease both; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(6px);} to { opacity:1; transform: translateY(0);} }
+  input[type=range] { accent-color: #2563eb; }
+  .icooon{width:16px;}
+</style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
+
+<div id="root"></div>
+
+<script>
+/* =========================================================
+   SnapConvert — plain JS (no JSX / no Babel) React app.
+   Written with React.createElement directly so the file
+   works standalone, with no build step and no transpiler,
+   including when opened straight from disk (file://).
+========================================================= */
+const { useState, useRef, useCallback, useEffect, useMemo } = React;
+const h = React.createElement;
+const IS_FILE_PROTOCOL = window.location.protocol === "file:";
+
+/* -------------------------------------------------------
+   Helpers
+------------------------------------------------------- */
+
+const FORMATS = [
+  { id: "image/jpeg", label: "JPG", ext: "jpg", supportsQuality: true },
+  { id: "image/png",  label: "PNG", ext: "png", supportsQuality: false },
+  { id: "image/webp", label: "WebP", ext: "webp", supportsQuality: true },
+  { id: "image/avif", label: "AVIF", ext: "avif", supportsQuality: true },
+];
+
+function formatBytes(bytes) {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return (bytes / Math.pow(k, i)).toFixed(i === 0 ? 0 : 2) + " " + sizes[i];
+}
+
+function extOf(name) {
+  const m = name.match(/\.([a-zA-Z0-9]+)$/);
+  return m ? m[1].toLowerCase() : "";
+}
+
+function baseName(name) {
+  return name.replace(/\.[^/.]+$/, "");
+}
+
+let avifEncoderPromise = null;
+function loadAvifEncoder() {
+  if (IS_FILE_PROTOCOL) {
+    return Promise.reject(new Error("AVIF needs a local server — see the banner above (file:// blocks the AVIF codec)."));
+  }
+  if (!avifEncoderPromise) {
+    avifEncoderPromise = import("https://esm.sh/@jsquash/avif@2.1.0?bundle");
+  }
+  return avifEncoderPromise;
+}
+
+let avifDecoderPromise = null;
+function loadAvifDecoder() {
+  if (IS_FILE_PROTOCOL) {
+    return Promise.reject(new Error("AVIF needs a local server — see the banner above (file:// blocks the AVIF codec)."));
+  }
+  if (!avifDecoderPromise) {
+    avifDecoderPromise = import("https://esm.sh/@jsquash/avif@2.1.0?bundle");
+  }
+  return avifDecoderPromise;
+}
+
+async function fileToImageBitmapCanvas(file) {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bitmap, 0, 0);
+  return { canvas, ctx, width: bitmap.width, height: bitmap.height };
+}
+
+async function decodeAvifFile(file) {
+  const buf = await file.arrayBuffer();
+  const mod = await loadAvifDecoder();
+  const imageData = await mod.decode(buf);
+  const canvas = document.createElement("canvas");
+  canvas.width = imageData.width;
+  canvas.height = imageData.height;
+  const ctx = canvas.getContext("2d");
+  ctx.putImageData(imageData, 0, 0);
+  return { canvas, ctx, width: imageData.width, height: imageData.height };
+}
+
+async function getSourceCanvas(file) {
+  const ext = extOf(file.name);
+  if (ext === "avif" || file.type === "image/avif") {
+    try {
+      return await decodeAvifFile(file);
+    } catch (e) {
+      return await fileToImageBitmapCanvas(file);
+    }
+  }
+  return await fileToImageBitmapCanvas(file);
+}
+
+function resizeCanvas(srcCanvas, targetW, targetH) {
+  if (!targetW || !targetH) return srcCanvas;
+  if (targetW === srcCanvas.width && targetH === srcCanvas.height) return srcCanvas;
+  const out = document.createElement("canvas");
+  out.width = targetW;
+  out.height = targetH;
+  const ctx = out.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(srcCanvas, 0, 0, targetW, targetH);
+  return out;
+}
+
+async function canvasToBlob(canvas, mime, quality) {
+  if (mime === "image/avif") {
+    const ctx = canvas.getContext("2d");
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const mod = await loadAvifEncoder();
+    const encoded = await mod.encode(imageData, {
+      quality: Math.round(quality * 100),
+      speed: 6,
+    });
+    return new Blob([encoded], { type: "image/avif" });
+  }
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), mime, mime === "image/png" ? undefined : quality);
+  });
+}
+
+/* -------------------------------------------------------
+   Icons (small inline SVG factory)
+------------------------------------------------------- */
+function icon(pathChildren, extraProps) {
+  return function(props) {
+    const merged = Object.assign({
+      viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
+      strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round"
+    }, extraProps || {}, props || {});
+    return h("svg", merged, pathChildren);
+  };
+}
+
+const IconUpload = icon([
+  h("path", { key: 1, d: "M12 16V4M12 4l-4 4M12 4l4 4" }),
+  h("path", { key: 2, d: "M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" }),
+]);
+const IconImage = icon([
+  h("rect", { key: 1, x: "3", y: "3", width: "18", height: "18", rx: "2" }),
+  h("circle", { key: 2, cx: "8.5", cy: "8.5", r: "1.5" }),
+  h("path", { key: 3, d: "M21 15l-5-5L5 21" }),
+]);
+const IconTrash = icon([
+  h("path", { key: 1, d: "M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z" }),
+]);
+const IconDownload = icon([
+  h("path", { key: 1, d: "M12 3v12m0 0-4-4m4 4 4-4" }),
+  h("path", { key: 2, d: "M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" }),
+]);
+const IconSun = icon([
+  h("circle", { key: 1, cx: "12", cy: "12", r: "4" }),
+  h("path", { key: 2, d: "M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" }),
+]);
+const IconMoon = icon([
+  h("path", { key: 1, d: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" }),
+]);
+const IconZip = icon([
+  h("path", { key: 1, d: "M10 3v2m0 2v2m0 2v2m0 2v2M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" }),
+]);
+const IconCheck = icon([
+  h("path", { key: 1, d: "M20 6 9 17l-5-5" }),
+], { strokeWidth: "2" });
+const IconSpinner = icon([
+  h("circle", { key: 1, cx: "12", cy: "12", r: "9", stroke: "currentColor", strokeWidth: "3", opacity: "0.25" }),
+  h("path", { key: 2, d: "M21 12a9 9 0 0 0-9-9", stroke: "currentColor", strokeWidth: "3", strokeLinecap: "round" }),
+], { fill: "none" });
+const IconSettings = icon([
+  h("circle", { key: 1, cx: "12", cy: "12", r: "3" }),
+  h("path", { key: 2, d: "M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1Z" }),
+]);
+const IconAlert = icon([
+  h("path", { key: 1, d: "M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" }),
+  h("path", { key: 2, d: "M12 9v4" }),
+  h("path", { key: 3, d: "M12 17h.01" }),
+]);
+
+/* -------------------------------------------------------
+   Main App
+------------------------------------------------------- */
+
+function App() {
+  const [dark, setDark] = useState(function () {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+  const [items, setItems] = useState([]);
+  const [format, setFormat] = useState("image/webp");
+  const [quality, setQuality] = useState(0.8);
+  const [resizeMode, setResizeMode] = useState("none");
+  const [resizeValue, setResizeValue] = useState(1920);
+  const [percentValue, setPercentValue] = useState(100);
+  const [keepAspect, setKeepAspect] = useState(true);
+  const [dragActive, setDragActive] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [zipping, setZipping] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(function () {
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
+
+  const currentFormat = FORMATS.filter(function (f) { return f.id === format; })[0];
+
+  const addFiles = useCallback(function (fileList) {
+    const validFiles = Array.from(fileList).filter(function (f) {
+      return f.type.startsWith("image/") || /\.(avif|heic)$/i.test(f.name);
+    });
+    const newItems = validFiles.map(function (f) {
+      return {
+        id: f.name + "-" + f.size + "-" + Math.random().toString(36).slice(2),
+        file: f, status: "pending", resultBlob: null, resultUrl: null,
+        error: null, origSize: f.size,
+      };
+    });
+    setItems(function (prev) { return prev.concat(newItems); });
+  }, []);
+
+  const onDrop = useCallback(function (e) {
+    e.preventDefault();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  }, [addFiles]);
+
+  const onPaste = useCallback(function (e) {
+    const items = e.clipboardData ? Array.from(e.clipboardData.items || []) : [];
+    const files = items.filter(function (it) { return it.kind === "file"; })
+      .map(function (it) { return it.getAsFile(); })
+      .filter(Boolean);
+    if (files.length) addFiles(files);
+  }, [addFiles]);
+
+  useEffect(function () {
+    window.addEventListener("paste", onPaste);
+    return function () { window.removeEventListener("paste", onPaste); };
+  }, [onPaste]);
+
+  const removeItem = function (id) {
+    setItems(function (prev) { return prev.filter(function (i) { return i.id !== id; }); });
+  };
+  const clearAll = function () { setItems([]); };
+
+  const processOne = async function (item) {
+    setItems(function (prev) {
+      return prev.map(function (i) { return i.id === item.id ? Object.assign({}, i, { status: "processing", error: null }) : i; });
+    });
+    try {
+      const src = await getSourceCanvas(item.file);
+      let targetW = src.width, targetH = src.height;
+
+      if (resizeMode === "width" && resizeValue > 0) {
+        targetW = Math.min(resizeValue, src.width);
+        targetH = keepAspect ? Math.round((targetW / src.width) * src.height) : src.height;
+      } else if (resizeMode === "percent" && percentValue > 0) {
+        targetW = Math.round(src.width * (percentValue / 100));
+        targetH = Math.round(src.height * (percentValue / 100));
+      }
+
+      const finalCanvas = resizeCanvas(src.canvas, targetW, targetH);
+      const blob = await canvasToBlob(finalCanvas, format, quality);
+      const url = URL.createObjectURL(blob);
+
+      setItems(function (prev) {
+        return prev.map(function (i) {
+          return i.id === item.id
+            ? Object.assign({}, i, { status: "done", resultBlob: blob, resultUrl: url, outW: targetW, outH: targetH })
+            : i;
+        });
+      });
+    } catch (err) {
+      console.error(err);
+      setItems(function (prev) {
+        return prev.map(function (i) {
+          return i.id === item.id ? Object.assign({}, i, { status: "error", error: (err && err.message) || "Conversion failed" }) : i;
+        });
+      });
+    }
+  };
+
+  const processAll = async function () {
+    setProcessing(true);
+    const pending = items.filter(function (i) { return i.status === "pending" || i.status === "error" || i.status === "done"; });
+    const concurrency = 3;
+    let idx = 0;
+    async function worker() {
+      while (idx < pending.length) {
+        const my = pending[idx++];
+        await processOne(my);
+      }
+    }
+    await Promise.all(Array.from({ length: concurrency }, worker));
+    setProcessing(false);
+  };
+
+  const downloadAllZip = async function () {
+    const done = items.filter(function (i) { return i.status === "done" && i.resultBlob; });
+    if (!done.length) return;
+    setZipping(true);
+    try {
+      const zip = new JSZip();
+      done.forEach(function (i) {
+        const name = baseName(i.file.name) + "." + currentFormat.ext;
+        zip.file(name, i.resultBlob);
+      });
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "converted-images.zip";
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setZipping(false);
+    }
+  };
+
+  const downloadOne = function (item) {
+    const a = document.createElement("a");
+    a.href = item.resultUrl;
+    a.download = baseName(item.file.name) + "." + currentFormat.ext;
+    a.click();
+  };
+
+  const stats = useMemo(function () {
+    const done = items.filter(function (i) { return i.status === "done"; });
+    const totalOrig = done.reduce(function (s, i) { return s + i.origSize; }, 0);
+    const totalNew = done.reduce(function (s, i) { return s + (i.resultBlob ? i.resultBlob.size : 0); }, 0);
+    const savedPct = totalOrig > 0 ? Math.round((1 - totalNew / totalOrig) * 100) : 0;
+    return { count: done.length, totalOrig: totalOrig, totalNew: totalNew, savedPct: savedPct };
+  }, [items]);
+
+  const anyDone = items.some(function (i) { return i.status === "done"; });
+
+  return h("div", { className: "min-h-screen flex flex-col" },
+    // Header
+    h("header", { className: "border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur" },
+      h("div", { className: "max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between" },
+        h("div", { className: "flex items-center gap-2.5" },
+          h("div", { className: "w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-sm" },
+            h(IconImage, { className: "w-5 h-5 text-white" })
+          ),
+          h("div", null,
+            h("h1", { className: "font-bold text-lg leading-none tracking-tight" }, "SnapConvert"),
+            h("p", { className: "text-[11px] text-slate-500 dark:text-slate-400 leading-none mt-1" }, "Free image converter — runs 100% in your browser"),
+            h("p", { className: "text-[11px] text-slate-500 dark:text-slate-400 leading-none mt-1" }, "Made with ❤️ by ", h("a", { href: "https://shahrukh-cv.netlify.app/", target: "_blank", rel: "noopener noreferrer" }, "Mohd Shahrukh"))
+          )
+        ),
+        h("button", {
+          onClick: function () { setDark(function (d) { return !d; }); },
+          className: "w-9 h-9 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors",
+          title: "Toggle theme"
+        }, dark ? h(IconSun, { className: "w-4.5 h-4.5" }) : h(IconMoon, { className: "w-4.5 h-4.5" }))
+      )
+    ),
+
+    h("main", { className: "flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6" },
+
+      // file:// warning banner
+      IS_FILE_PROTOCOL && h("div", { className: "flex items-start gap-2 text-xs sm:text-sm text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3" },
+        h(IconAlert, { className: "w-4 h-4 shrink-0 mt-0.5" }),
+        h("span", null,
+          "You're opening this file directly (file://). JPG, PNG and WebP conversions work fine here, but ",
+          h("b", null, "AVIF needs a local server"), " because browsers block its WebAssembly codec on file:// pages for security reasons. ",
+          "Fix: open a terminal in this folder and run ", h("code", { className: "bg-amber-100 dark:bg-amber-900/60 px-1 rounded" }, "npx serve ."), " (or ", h("code", { className: "bg-amber-100 dark:bg-amber-900/60 px-1 rounded" }, "python3 -m http.server"), "), then open the localhost link it gives you."
+        )
+      ),
+
+      // Privacy banner
+      h("div", { className: "flex items-center gap-2 text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl px-4 py-2.5" },
+        h(IconCheck, { className: "w-4 h-4 shrink-0" }),
+        h("span", null, "Your images never leave your device. Everything is processed locally in your browser — no uploads, no accounts, no cost.")
+      ),
+
+      // Dropzone
+      h("div", {
+        onDragOver: function (e) { e.preventDefault(); setDragActive(true); },
+        onDragLeave: function () { setDragActive(false); },
+        onDrop: onDrop,
+        onClick: function () { if (inputRef.current) inputRef.current.click(); },
+        className: "relative cursor-pointer rounded-2xl border-2 border-dashed transition-all " +
+          (dragActive ? "border-brand-500 bg-brand-50 dark:bg-brand-950/30 drop-active" : "border-slate-300 dark:border-slate-700 hover:border-brand-400 bg-white dark:bg-slate-900") +
+          " px-6 py-6 text-center"
+      },
+        h("input", {
+          ref: inputRef, type: "file", multiple: true, accept: "image/*,.avif,.heic", className: "hidden",
+          onChange: function (e) {
+            if (e.target.files && e.target.files.length) addFiles(e.target.files);
+            e.target.value = "";
+          }
+        }),
+        h("div", { className: "w-14 h-14 mx-auto rounded-2xl bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center mb-4" },
+          h(IconUpload, { className: "w-7 h-7 text-brand-600 dark:text-brand-400" })
+        ),
+        h("p", { className: "font-semibold text-slate-700 dark:text-slate-200" }, "Drag & drop images here, or click to browse"),
+        h("p", { className: "text-sm text-slate-500 dark:text-slate-400 mt-1" }, "Supports JPG, PNG, WebP, AVIF, BMP, GIF · you can also paste an image (Ctrl/Cmd+V)")
+      ),
+
+      // Settings panel
+      h("div", { className: "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 space-y-6" },
+        h("div", { className: "flex items-center gap-2 text-slate-700 dark:text-slate-200 font-semibold" },
+          h(IconSettings, { className: "w-4.5 h-4.5 icooon" }),
+          h("span", null, "Conversion settings")
+        ),
+
+        // Format picker
+        h("div", null,
+          h("label", { className: "text-sm font-medium text-slate-600 dark:text-slate-300 mb-2 block" }, "Convert to"),
+          h("div", { className: "grid grid-cols-2 sm:grid-cols-4 gap-2.5" },
+            FORMATS.map(function (f) {
+              return h("button", {
+                key: f.id,
+                onClick: function () { setFormat(f.id); },
+                className: "px-1 py-1 rounded-xl border text-sm font-semibold transition-all " +
+                  (format === f.id
+                    ? "border-brand-500 bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 ring-1 ring-brand-500"
+                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-300")
+              },
+                f.label,
+                f.id === "image/avif" ? h("span", { className: "block text-[10px] font-normal opacity-70 mt-0.5" }, "smallest size") : null
+              );
+            })
+          )
+        ),
+
+        // Quality
+        currentFormat.supportsQuality ? h("div", null,
+          h("div", { className: "flex items-center justify-between mb-2" },
+            h("label", { className: "text-sm font-medium text-slate-600 dark:text-slate-300" }, "Quality"),
+            h("span", { className: "text-sm font-mono text-brand-600 dark:text-brand-400" }, Math.round(quality * 100) + "%")
+          ),
+          h("input", {
+            type: "range", min: "0.1", max: "1", step: "0.05", value: quality,
+            onChange: function (e) { setQuality(parseFloat(e.target.value)); },
+            className: "w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 appearance-none cursor-pointer"
+          }),
+          h("div", { className: "flex justify-between text-[11px] text-slate-400 mt-1" },
+            h("span", null, "Smaller file"), h("span", null, "Higher quality")
+          )
+        ) : null,
+
+        // Resize
+        h("div", null,
+          h("label", { className: "text-sm font-medium text-slate-600 dark:text-slate-300 mb-2 block" }, "Resize (optional)"),
+          h("div", { className: "flex flex-wrap gap-2 mb-3" },
+            [
+              { id: "none", label: "Original size" },
+              { id: "width", label: "Max width" },
+              { id: "percent", label: "Scale %" },
+            ].map(function (opt) {
+              return h("button", {
+                key: opt.id,
+                onClick: function () { setResizeMode(opt.id); },
+                className: "px-3.5 py-1.5 rounded-lg text-sm font-medium border transition-colors " +
+                  (resizeMode === opt.id
+                    ? "border-brand-500 bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300"
+                    : "border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400")
+              }, opt.label);
+            })
+          ),
+          resizeMode === "width" ? h("div", { className: "flex items-center gap-3" },
+            h("input", {
+              type: "number", min: "16", value: resizeValue,
+              onChange: function (e) { setResizeValue(parseInt(e.target.value) || 0); },
+              className: "w-32 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm"
+            }),
+            h("span", { className: "text-sm text-slate-500" }, "px wide"),
+            h("label", { className: "flex items-center gap-1.5 text-sm text-slate-500 ml-3" },
+              h("input", { type: "checkbox", checked: keepAspect, onChange: function (e) { setKeepAspect(e.target.checked); } }),
+              "keep aspect ratio"
+            )
+          ) : null,
+          resizeMode === "percent" ? h("div", { className: "flex items-center gap-3" },
+            h("input", {
+              type: "number", min: "1", max: "200", value: percentValue,
+              onChange: function (e) { setPercentValue(parseInt(e.target.value) || 0); },
+              className: "w-32 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm"
+            }),
+            h("span", { className: "text-sm text-slate-500" }, "% of original")
+          ) : null
+        )
+      ),
+
+      // Action bar
+      items.length > 0 ? h("div", { className: "flex flex-wrap items-center gap-3" },
+        h("button", {
+          onClick: processAll,
+          disabled: processing || items.length === 0,
+          className: "inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm shadow-sm transition-colors"
+        },
+          processing ? h(IconSpinner, { className: "w-4 h-4 spin" }) : h(IconImage, { className: "w-4 h-4" }),
+          processing ? "Converting…" : ("Convert " + items.length + " image" + (items.length > 1 ? "s" : "") + " to " + currentFormat.label)
+        ),
+        anyDone ? h("button", {
+          onClick: downloadAllZip,
+          disabled: zipping,
+          className: "inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-sm transition-colors"
+        },
+          zipping ? h(IconSpinner, { className: "w-4 h-4 spin" }) : h(IconZip, { className: "w-4 h-4" }),
+          "Download all as ZIP"
+        ) : null,
+        h("button", {
+          onClick: clearAll,
+          className: "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 font-medium text-sm transition-colors ml-auto"
+        }, h(IconTrash, { className: "w-4 h-4" }), "Clear all")
+      ) : null,
+
+      // Stats
+      stats.count > 0 ? h("div", { className: "grid grid-cols-3 gap-3" },
+        h(StatCard, { label: "Converted", value: stats.count }),
+        h(StatCard, { label: "Original size", value: formatBytes(stats.totalOrig) }),
+        h(StatCard, { label: "New size", value: formatBytes(stats.totalNew), highlight: stats.savedPct > 0, sub: stats.savedPct !== 0 ? ((stats.savedPct > 0 ? "-" : "+") + Math.abs(stats.savedPct) + "%") : null })
+      ) : null,
+
+      // Grid
+      items.length > 0 ? h("div", { className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-4" },
+        items.map(function (item) {
+          return h(ImageCard, {
+            key: item.id, item: item, targetExt: currentFormat.ext,
+            onRemove: function () { removeItem(item.id); },
+            onDownload: function () { downloadOne(item); },
+            onRetry: function () { processOne(item); }
+          });
+        })
+      ) : null,
+
+      items.length === 0 ? h("div", { className: "text-center py-16 text-slate-400 dark:text-slate-600" },
+        h(IconImage, { className: "w-12 h-12 mx-auto mb-3 opacity-40" }),
+        h("p", { className: "text-sm" }, "No images yet. Add some above to get started.")
+      ) : null
+    ),
+
+    h("footer", { className: "border-t border-slate-200 dark:border-slate-800 py-6 mt-10" },
+      h("div", { className: "max-w-6xl mx-auto px-4 sm:px-6 text-center text-xs text-slate-400 dark:text-slate-600" },
+        "Built with React + Tailwind · Runs entirely client-side · No image is ever uploaded anywhere"
+      )
+    )
+  );
+}
+
+function StatCard(props) {
+  return h("div", { className: "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3" },
+    h("p", { className: "text-[11px] uppercase tracking-wide text-slate-400 font-medium" }, props.label),
+    h("div", { className: "flex items-baseline gap-2 mt-0.5" },
+      h("p", { className: "text-lg font-bold" }, props.value),
+      props.sub ? h("span", { className: "text-xs font-semibold " + (props.highlight ? "text-emerald-600 dark:text-emerald-400" : "text-red-500") }, props.sub) : null
+    )
+  );
+}
+
+function ImageCard(props) {
+  const item = props.item;
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  useEffect(function () {
+    const url = URL.createObjectURL(item.file);
+    setPreviewUrl(url);
+    return function () { URL.revokeObjectURL(url); };
+  }, [item.file]);
+
+  const diff = item.status === "done" ? item.origSize - item.resultBlob.size : 0;
+  const diffPct = item.status === "done" ? Math.round((diff / item.origSize) * 100) : 0;
+
+  return h("div", { className: "fade-in bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden group" },
+    h("div", { className: "relative aspect-video bg-slate-100 dark:bg-slate-800 overflow-hidden" },
+      previewUrl ? h("img", { src: previewUrl, alt: item.file.name, className: "w-full h-full object-cover" }) : null,
+      h("div", { className: "absolute top-2 right-2 flex gap-1.5" },
+        h("button", {
+          onClick: props.onRemove,
+          className: "w-7 h-7 rounded-full bg-black/50 hover:bg-red-600 text-white flex items-center justify-center backdrop-blur transition-colors",
+          title: "Remove"
+        }, h(IconTrash, { className: "w-3.5 h-3.5" }))
+      ),
+      item.status === "processing" ? h("div", { className: "absolute inset-0 bg-black/40 flex items-center justify-center" },
+        h(IconSpinner, { className: "w-6 h-6 text-white spin" })
+      ) : null
+    ),
+    h("div", { className: "p-3.5 space-y-2" },
+      h("p", { className: "text-sm font-medium truncate", title: item.file.name }, item.file.name),
+      h("div", { className: "flex items-center justify-between text-xs text-slate-500 dark:text-slate-400" },
+        h("span", null, formatBytes(item.origSize)),
+        item.status === "done" ? h("span", null, "→") : null,
+        item.status === "done" ? h("span", { className: "font-semibold text-slate-700 dark:text-slate-200" }, formatBytes(item.resultBlob.size)) : null
+      ),
+      item.status === "done" ? h("div", { className: "w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden" },
+        h("div", { className: "h-full " + (diffPct >= 0 ? "bg-emerald-500" : "bg-red-500"), style: { width: Math.min(100, Math.abs(diffPct)) + "%" } })
+      ) : null,
+      h("div", { className: "flex items-center justify-between pt-1" },
+        h(StatusPill, { status: item.status, error: item.error }),
+        item.status === "done" ? h("button", {
+          onClick: props.onDownload,
+          className: "inline-flex items-center gap-1 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+        }, h(IconDownload, { className: "w-3.5 h-3.5" }), "." + props.targetExt) : null,
+        item.status === "error" ? h("button", { onClick: props.onRetry, className: "text-xs font-semibold text-amber-600 hover:underline" }, "Retry") : null
+      )
+    )
+  );
+}
+
+function StatusPill(props) {
+  const map = {
+    pending: { text: "Ready", cls: "bg-slate-100 dark:bg-slate-800 text-slate-500" },
+    processing: { text: "Converting…", cls: "bg-brand-50 dark:bg-brand-950/40 text-brand-600 pulse-bar" },
+    done: { text: "Done", cls: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600" },
+    error: { text: props.error || "Failed", cls: "bg-red-50 dark:bg-red-950/40 text-red-600" },
+  };
+  const m = map[props.status] || map.pending;
+  return h("span", { className: "text-[11px] font-medium px-2 py-0.5 rounded-full " + m.cls }, m.text);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+</script>
+</body>
+</html>
