@@ -1,17 +1,13 @@
 "use strict";
 ( function ( $ ) {
-
 	$( 'document' ).ready( function () {
-
 		var $settings = $( '#template-settings' ),
 			$template_settings_open = $( '#template-settings-open', $settings ),
 			$layout_pane = $( '.template-settings-pane.layout-pane', $settings ),
 			$skin_pane = $( '.template-settings-pane.skin-pane', $settings );
-
 			$template_settings_open.on( 'click', function () {
 				$settings.toggleClass( 'open' );
 			} );
-
 			$( 'a', $skin_pane ).on( 'click', function ( e ) {
 				e.preventDefault();
 				var $this = $( this ),
@@ -20,16 +16,12 @@
 				$( 'a', $skin_pane ).removeClass( 'active' );
 				$this.addClass( 'active' );
 			} ).first().addClass( 'active' );
-
 			$( 'input[name="choose-page-layout"]', $layout_pane ).on( 'change', function () {
 				console.log( 'value: ' + $( this ).filter( ':checked' ).val() );
 				$( 'body' ).attr( 'class', '' ).addClass( $( this ).filter( ':checked' ).val() );
 			} )
-
 	} );
-
 } )( jQuery );
-
 (function ($) {
     'use strict';
     var Accordion = function (elm, options) {
@@ -114,7 +106,6 @@
     var Countdown = function (elm, options) {
         var
             // Vars
-
             self,
             $this = $( elm ),
             str = $this.data( 'rt-countdown' ),
@@ -127,9 +118,7 @@
             $secsValue = $( '[data-rt-countdown-seconds] .value', $this ),
             dividers = new Array(86400, 3600, 60, 1), rest, t,
             values = new Array( $daysValue, $hoursValue, $minsValue, $secsValue ),
-
             // Methods
-
             convert = function ( element ) {
                 opts.push( parseInt( element, 10 ) );
             },
@@ -170,8 +159,6 @@
         $rtCountdown.rtCountdown();
     }
 } ( jQuery ) );
-
-
 document.addEventListener("DOMContentLoaded", function () {
   window.addEventListener("scroll", function () {
     document.body.classList.toggle("scrolled", window.scrollY > 100);
